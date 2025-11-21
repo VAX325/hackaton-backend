@@ -68,6 +68,7 @@ class Sessions(SoftDeleteModel):
     user_id = models.ForeignKey(Users, on_delete=models.PROTECT)
     token = models.CharField(length=16)
     start_time = models.DateTimeField(default=timezone.now())
+    finish_time = models.DateTimeField()
     #device_name = models.CharField(max_length=128)
 
 

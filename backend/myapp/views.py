@@ -3,11 +3,10 @@ from django.shortcuts import render
 from django.http import HttpResponse
 from rest_framework.decorators import api_view
 from rest_framework import routers
-from rest_framework.generics import CreateAPIView
+from rest_framework.generics import CreateAPIView, ListAPIView, RetrieveAPIView
 from django.contrib.auth.hashers import make_password
 from .serializers import UsersSerializer, User
 
-router = routers.SimpleRouter()
 # Create your views here.
 class UserCreateView(CreateAPIView):
     serializer_class = UsersSerializer
@@ -17,7 +16,11 @@ class UserCreateView(CreateAPIView):
 
         request.data["password"] = make_password(request.data["password"])
         return super().post(request, *args, **kwargs)
-    
+
+class UserInfoView(RetrieveAPIView):
+    serializer_class = UsersSerializer
+    queryset = User.objects.all()    
+
 @api_view(["POST"])
 def auth_by_hash(request):
     name = request.data["username"]

@@ -18,9 +18,12 @@ from django.contrib import admin
 from django.urls import path
 from myapp import views
 
+
+
+
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path("api/auth", views.Auth.r())
+    path("api/v1/users/signin", views.auth_by_hash)
 ]
 
 

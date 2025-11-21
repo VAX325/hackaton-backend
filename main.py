@@ -1,11 +1,15 @@
-import random
 import requests
+import json
+import ast
 
 def main():
-    r = requests.post("http://127.0.0.1:8000/api/v1/users/signin",json={
-        "username": "user",
-        "pass": "pass"
+    r = requests.get("http://127.0.0.1:8000/users",
+    json={
+        "username":"test",
+        "password":"password",
+        "email":"test@mail.com",
+
     })
-    print(r.request.body)
 
 
+main()

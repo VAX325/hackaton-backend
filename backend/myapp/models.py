@@ -36,11 +36,11 @@ class SoftDeleteModel(models.Model):
 
 class User(SoftDeleteModel):
     username = models.CharField(unique=True, max_length=16)
-    visible_name = models.CharField(max_length=32, default="d123")
+    visible_name = models.CharField(max_length=32, default="")
     email = models.CharField(max_length=32)
     bio = models.CharField(null=True, max_length=256)
     follower_counter = models.IntegerField(default=0)
-    avatar_url = models.URLField()
+    avatar_url = models.URLField(null=True)
     birthday = models.DateField(default='1900-01-01')
     registration_day = models.DateField(default=date.today())
     password_hash = models.CharField(max_length=256)
@@ -102,7 +102,7 @@ class Comment(SoftDeleteModel):
     text = models.CharField(max_length=512)
     creator_id = models.ForeignKey(User, on_delete=models.PROTECT)
     post_id = models.ForeignKey(Post, on_delete=models.PROTECT)
-    creatoin_time = models.DateTimeField(default=timezone.now())
+    creation_time = models.DateTimeField(default=timezone.now())
 
 
 
@@ -110,7 +110,7 @@ class ResourcesData(SoftDeleteModel):
     resource_url = models.URLField()
 
 
-class RecourcesRelation(SoftDeleteModel):
+class ResourcesRelation(SoftDeleteModel):
     post_id = models.ForeignKey(Post, on_delete=models.PROTECT)
     comment_id = models.ForeignKey(Comment, on_delete=models.PROTECT)
     resource_id = models.ForeignKey(ResourcesData, on_delete=models.PROTECT)

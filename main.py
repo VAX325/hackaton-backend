@@ -1,3 +1,4 @@
+import random
 import requests
 
 def main():
@@ -7,4 +8,4 @@ def main():
     })
     print(r.request.body)
 
-main()
+

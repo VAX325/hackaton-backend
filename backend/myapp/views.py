@@ -1,3 +1,4 @@
+from rest_framework import status
 from utils import random_token
 from django.shortcuts import render
 from datetime import datetime, timedelta
@@ -15,40 +16,63 @@ class UserCreateView(CreateAPIView):
     queryset = User.objects.all()
 
     def post(self, request, *args, **kwargs):
-
+        
         request.data["password"] = make_password(request.data["password"])
         return super().post(request, *args, **kwargs)
 
 class UserInfoView(RetrieveAPIView):
     serializer_class = UsersSerializer
     queryset = User.objects.all()    
+    def get(self, request, *args, **kwargs):
+        try:
+            check_session(request.data.token)
+        except:
+
+            if Session.object.filter(token=request.data.token, user_id=request.data.user_id).count <= 0:
+                return JsonResponse({}, status=status.HTTP_401_UNAUTHORIZED)
+
+        
+
+        return super().get(request, *args, **kwargs)
 
 @api_view(["POST"])
 def auth_by_hash(request):
-    name = request.data["username"]
-    passhash = hash(request.data["pass"])
+    try:
+        check_session(request.data.token)
+    except:
+        name = request.data["username"]
+        passhash = hash(request.data["pass"])
 
-    if not User.objects.filter(name=name, password_hash=passhash).count() > 0:
-       return
-    
-    token = random_token()
+        if not User.objects.filter(name=name, password_hash=passhash).count() > 0:
+           return JsonResponse({}, status=status.HTTP_400_BAD_REQUEST)
 
-    ses_expire = datetime.now()+timedelta.days(7)
+        token = random_token()
 
-    Session.object.create(token=token, session_finish_time=ses_expire)
-    return JsonResponse({"token":token})
+        ses_expire = datetime.now()+timedelta.days(7)
 
-@api_view(["POST"])
-def update_session(request):
-    old_token = request.data["token"]
+        Session.object.create(token=token, session_finish_time=ses_expire)
+        return JsonResponse({"token":token},status=status.HTTP_200_OK)
 
 
-@api_view(["POST"])
-def Check_session(request):
-    token = request.data["token"]
+def update_session(token):
+    r = Session.object.filter(token=token)
 
+    new_token = random_token()
+
+    r["token"] = new_token
+    r.save()
+    return
+
+
+
+def check_session(token):
     res = Session.object.filter(token=token)
 
     if res.count <= 0:
-        return JsonResponse({"status":403})
-    res["s"]
+        raise JsonResponse({"message":"Session is not exist"}, status.HTTP_400_BAD_REQUEST)
+    if res["finish_time"] < datetime.now():
+        raise JsonResponse({"message": "Session expire"},status=status.HTTP_401_UNAUTHORIZED)
+    update_session(token=token)
+    
+
+    

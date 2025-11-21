@@ -1,5 +1,5 @@
 from rest_framework import status
-from utils import random_token
+from .utils import random_token
 from django.shortcuts import render
 from datetime import datetime, timedelta
 from django.http import JsonResponse
@@ -8,12 +8,12 @@ from rest_framework import routers
 from rest_framework.generics import CreateAPIView, ListAPIView, RetrieveAPIView
 from django.contrib.auth.hashers import make_password
 from .serializers import *
-from models import *
+from .models import *
 
 # Create your views here.
 class UserCreateView(CreateAPIView):
     serializer_class = UsersSerializer
-    queryset = Users.objects.all()
+    queryset = User.objects.all()
 
     def post(self, request, *args, **kwargs):
         
@@ -22,13 +22,13 @@ class UserCreateView(CreateAPIView):
 
 class UserInfoView(RetrieveAPIView):
     serializer_class = UsersSerializer
-    queryset = Users.objects.all()    
+    queryset = User.objects.all()    
     def get(self, request, *args, **kwargs):
         try:
             check_session(request.data.token)
         except:
 
-            if Sessions.object.filter(token=request.data.token, user_id=request.data.user_id).count <= 0:
+            if Session.object.filter(token=request.data.token, user_id=request.data.user_id).count <= 0:
                 return JsonResponse({}, status=status.HTTP_401_UNAUTHORIZED)
 
         
@@ -41,21 +41,21 @@ def auth_by_hash(request):
         check_session(request.data.token)
     except:
         name = request.data["username"]
-        passhash = hash(request.data["pass"])
+        passhash = hash(request.data["password"])
 
-        if not Users.objects.filter(name=name, password_hash=passhash).count() > 0:
+        if not User.objects.filter(name=name, password_hash=passhash).count() > 0:
            return JsonResponse({}, status=status.HTTP_400_BAD_REQUEST)
 
         token = random_token()
 
         ses_expire = datetime.now()+timedelta.days(7)
 
-        Sessions.object.create(token=token, session_finish_time=ses_expire)
+        Session.object.create(token=token, session_finish_time=ses_expire)
         return JsonResponse({"token":token},status=status.HTTP_200_OK)
 
 
 def update_session(token):
-    r = Sessions.object.filter(token=token)
+    r = Session.object.filter(token=token)
 
     new_token = random_token()
 

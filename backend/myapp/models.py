@@ -24,7 +24,7 @@ class Users(models.Model):
 
 
 
-class Users_follows(models.Model):
+class UsersFollows(models.Model):
     follow_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user_id = models.ForeignKey(Users, on_delete=models.PROTECT)
     follower_id = models.ForeignKey(Users, on_delete=models.PROTECT)
@@ -41,7 +41,7 @@ class Sessions(models.Model):
     #device_name = models.CharField(max_length=128)
 
 
-class global_admins(models.Model):
+class GlobalAdmins(models.Model):
     admin_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user_id = models.ForeignKey(Users, on_delete=models.models.PROTECT)
 
@@ -57,7 +57,7 @@ class Communities(models.Model):
 
 
 
-class Communities_follows(models.Model):
+class CommunitiesFollows(models.Model):
     follow_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     community_id = models.ForeignKey(Communities, on_delete=models.models.PROTECT)
     follower_id = models.ForeignKey(Users, on_delete=models.models.PROTECT)
@@ -83,12 +83,12 @@ class Comments(models.Model):
 
 
 
-class Resources_data(models.Model):
+class ResourcesData(models.Model):
     resource_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     resource_url = models.URLField()
 
 
-class Recources_relations(models.Model):
+class RecourcesRelations(models.Model):
     relation_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     post_id = models.ForeignKey(Posts, on_delete=models.models.PROTECT)
     comment_id = models.ForeignKey(Comments, on_delete=models.models.PROTECT)

@@ -1,11 +1,13 @@
 from utils import random_token
 from django.shortcuts import render
-from django.http import HttpResponse
+from datetime import datetime, timedelta
+from django.http import JsonResponse
 from rest_framework.decorators import api_view
 from rest_framework import routers
 from rest_framework.generics import CreateAPIView, ListAPIView, RetrieveAPIView
 from django.contrib.auth.hashers import make_password
-from .serializers import UsersSerializer, User
+from .serializers import UsersSerializer
+from models import User
 
 # Create your views here.
 class UserCreateView(CreateAPIView):
@@ -31,6 +33,22 @@ def auth_by_hash(request):
     
     token = random_token()
 
-    Session.object.create(token=token)
-    return HttpResponse(token)
+    ses_expire = datetime.now()+timedelta.days(7)
 
+    Session.object.create(token=token, session_finish_time=ses_expire)
+    return JsonResponse({"token":token})
+
+@api_view(["POST"])
+def update_session(request):
+    old_token = request.data["token"]
+
+
+@api_view(["POST"])
+def Check_session(request):
+    token = request.data["token"]
+
+    res = Session.object.filter(token=token)
+
+    if res.count <= 0:
+        return JsonResponse({"status":403})
+    res["s"]

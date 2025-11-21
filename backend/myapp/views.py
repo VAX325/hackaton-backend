@@ -7,13 +7,13 @@ from rest_framework.decorators import api_view
 from rest_framework import routers
 from rest_framework.generics import CreateAPIView, ListAPIView, RetrieveAPIView
 from django.contrib.auth.hashers import make_password
-from .serializers import UsersSerializer
-from models import User
+from .serializers import *
+from models import *
 
 # Create your views here.
 class UserCreateView(CreateAPIView):
     serializer_class = UsersSerializer
-    queryset = User.objects.all()
+    queryset = Users.objects.all()
 
     def post(self, request, *args, **kwargs):
         
@@ -22,13 +22,13 @@ class UserCreateView(CreateAPIView):
 
 class UserInfoView(RetrieveAPIView):
     serializer_class = UsersSerializer
-    queryset = User.objects.all()    
+    queryset = Users.objects.all()    
     def get(self, request, *args, **kwargs):
         try:
             check_session(request.data.token)
         except:
 
-            if Session.object.filter(token=request.data.token, user_id=request.data.user_id).count <= 0:
+            if Sessions.object.filter(token=request.data.token, user_id=request.data.user_id).count <= 0:
                 return JsonResponse({}, status=status.HTTP_401_UNAUTHORIZED)
 
         
@@ -43,19 +43,19 @@ def auth_by_hash(request):
         name = request.data["username"]
         passhash = hash(request.data["pass"])
 
-        if not User.objects.filter(name=name, password_hash=passhash).count() > 0:
+        if not Users.objects.filter(name=name, password_hash=passhash).count() > 0:
            return JsonResponse({}, status=status.HTTP_400_BAD_REQUEST)
 
         token = random_token()
 
         ses_expire = datetime.now()+timedelta.days(7)
 
-        Session.object.create(token=token, session_finish_time=ses_expire)
+        Sessions.object.create(token=token, session_finish_time=ses_expire)
         return JsonResponse({"token":token},status=status.HTTP_200_OK)
 
 
 def update_session(token):
-    r = Session.object.filter(token=token)
+    r = Sessions.object.filter(token=token)
 
     new_token = random_token()
 
@@ -66,7 +66,7 @@ def update_session(token):
 
 
 def check_session(token):
-    res = Session.object.filter(token=token)
+    res = Sessions.object.filter(token=token)
 
     if res.count <= 0:
         raise JsonResponse({"message":"Session is not exist"}, status.HTTP_400_BAD_REQUEST)
@@ -75,4 +75,3 @@ def check_session(token):
     update_session(token=token)
     
 
-    

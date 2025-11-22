@@ -27,14 +27,14 @@ class UserCreateView(CreateAPIView):
 class UserInfoView(RetrieveAPIView):
     serializer_class = UserSerializer
     queryset = User.objects.all()    
-    def get(self, request, *args, **kwargs):
+    def get(self, request, pk , *args, **kwargs):
         try:
             check_session(request.data.token)
-        except:
-
-            if Session.object.filter(token=request.data.token, user_id=request.data.user_id).count <= 0:
-                return JsonResponse({}, status=status.HTTP_401_UNAUTHORIZED)
-        return super().get(request, *args, **kwargs)
+            
+            return JsonResponse(User.objects.filter(id=pk))
+            
+        except Exception as e:
+            JsonResponse(e)
 
 @api_view(["POST"])
 def PostCreateView(request):
@@ -185,10 +185,24 @@ def get_follower_view(request):
     try:
         check_session(request.data.token)
         
-        r = UsersFollow.objects.filter(user_id=request.data.)
+        r = UsersFollow.objects.filter(user_id=request.data.user_id)
+
+        if r.count() <= 0 :
+            return JsonResponse({"data":[]}, status=status.HTTP_200_OK)
+
+        data = []
+        for follow in r:
+            data.append(
+                {
+                    "id":follow.id,
+                    "user_id":follow.user_id,
+                    "follower_id":follow.follower_id
+                })
+
+        return JsonResponse({"data":data},status=status.HTTP_200_OK)
 
     except Exception as e:
-        return JsonResponse({"message":e})
+        return JsonResponse(e)
 
 @api_view(["GET"])
 def get_all_users(request):
@@ -226,4 +240,7 @@ def check_session(token):
         raise JsonResponse({"message": "Session expire"},status=status.HTTP_401_UNAUTHORIZED)
     update_session(token=token)
     
+
+
+
 

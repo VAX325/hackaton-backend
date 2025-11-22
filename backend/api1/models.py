@@ -62,8 +62,6 @@ class SoftDeleteUserModel(AbstractBaseUser):
 
 class CustomUserManager(BaseUserManager):
     def create_user(self, username, password=None, **extra_fields):
-        if not username:
-            raise ValueError("The Email field must be set")
         user = self.model(
             username=self.model.normalize_username(username=username), **extra_fields
         )  # Create user instance

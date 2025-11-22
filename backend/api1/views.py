@@ -31,6 +31,18 @@ class RegistrationView(APIView):
         if serializer.is_valid():
             userdata = serializer.data
 
+            try:
+                User.objects.get(
+                    username=User.normalize_username(username=userdata.username)
+                )
+
+                return Response(
+                    {"message": "User alreaddy exists"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            except User.DoesNotExist:
+                pass
+
             user = User.objects.create_user(
                 username=userdata["username"],
                 password=userdata["password"],

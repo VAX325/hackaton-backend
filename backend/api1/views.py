@@ -73,8 +73,16 @@ class LoginView(APIView):
             )
 
         try:
-            user = User.objects.get(username=username, password=make_password(password))
+            user = User.objects.get(
+                username=username,
+            )
         except User.DoesNotExist:
+            return Response(
+                {"message": "Invalid Login or Password"},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        if not user.check_password(password):
             return Response(
                 {"message": "Invalid Login or Password"},
                 status=status.HTTP_401_UNAUTHORIZED,

@@ -40,7 +40,7 @@ class UserInfoView(RetrieveAPIView):
 def PostCreateView(request):
     try:
         check_session(request.data.token)
-    except:
+    
         post = Post.objects.create(
             text=request.data.text, 
             creator_id=request.data.creator_id, 
@@ -60,11 +60,14 @@ def PostCreateView(request):
     
         return JsonResponse({"message":"OK"}, status=status.HTTP_201_CREATED)
 
+    except Exception as e:
+        return JsonResponse({"message":e})
+
 @api_view(["POST"])
 def PostGetView(request):
     try:
         check_session(request.data.token)
-    except: 
+    
         post = Post.objects.filter(id=request.data.post_id)
 
         if post.count() <= 0 : return JsonResponse({"message":"Bad Request"}, status=status.HTTP_400_BAD_REQUEST) 
@@ -88,12 +91,14 @@ def PostGetView(request):
                 "deslike_counter":post.deslike_counter
             }
         })
+        
+    except Exception as e:
+        return JsonResponse({"message":e})
 
 @api_view(["POST"])
 def CommentCreateView(request):
     try:
         check_session(request.data.token)
-    except:
         comment = Comment.objects.create(
             text=request.data.text, 
             creator_id=request.data.creator_id, 
@@ -114,12 +119,14 @@ def CommentCreateView(request):
     
         return JsonResponse({"message":"OK"}, status=status.HTTP_201_CREATED)
 
+    except Exception as e:
+        return JsonResponse({"message":e})
 
 @api_view(["POST"])
 def CommentGetView(request):
     try:
         check_session(request.data.token)
-    except: 
+    
         comment = Comment.objects.filter(id=request.data.post_id)
 
         if comment.count() <= 0 : return JsonResponse({"message":"Bad Request"}, status=status.HTTP_400_BAD_REQUEST) 
@@ -137,6 +144,10 @@ def CommentGetView(request):
             }
         })
 
+    except Exception as e:
+        return JsonResponse({"message":e})
+
+
 @api_view(["POST"])
 def auth_by_hash(request):
     
@@ -153,10 +164,45 @@ def auth_by_hash(request):
     Session.object.create(token=token, session_finish_time=ses_expire, user_id=User.objects.filter(username=name, password_hash=passhash).id)
     return JsonResponse({"token":token},status=status.HTTP_200_OK)
 
+@api_view(["POST"])
+def users_following_create_view(request):
+    try:
+        check_session(request.data.token)
+
+        if User.objects.filter(id=request.data.user_id).count() <= 0 and User.objects.filter(id=request.data.follower_id).count() <= 0     
+            return JsonResponse({"message":"Users not Exist"}, status=status.HTTP_404_NOT_FOUND)
+
+        UsersFollow.objects.create(user_id=request.data.user_id, follower_id=request.data.follower_id)
+
+        return JsonResponse({"message":"CREATED"}, status=status.HTTP_201_CREATED)
+    
+    except Exception as e:
+        return JsonResponse({"message":e})
+
+
+@api_view(["POST"])
+def get_follower_view(request):
+    try:
+        check_session(request.data.token)
+
+
+    except Exception as e:
+        return JsonResponse({"message":e})
+
 @api_view(["GET"])
 def get_all_users(request):
+    """
+    !ONLY FOR TEST
+    """
+    try:
+        check_session(request.token)
+        # Check user by he is admin
 
-    return HttpResponse(User.objects.all().count())
+
+        return HttpResponse(User.objects.all())
+    
+    except Exception as e:
+        return JsonResponse({"message":e})
 
 def update_session(token):
     r = Session.object.filter(token=token)

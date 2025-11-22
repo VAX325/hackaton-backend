@@ -13,7 +13,6 @@ class SoftDeleteModelSerializer(serializers.ModelSerializer):
 
 
 class UserRegistrationSerializer(serializers.Serializer):
-    email = serializers.EmailField()
     username = serializers.CharField()
     password = serializers.CharField()
 
@@ -23,27 +22,34 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = "__all__"
-
-
-class UsersFollowSerializer(serializers.ModelSerializer):
-    """Сериализатор для модели UsersFollows"""
-
-    class Meta:
-        model = UsersFollow
-        fields = ("id", "user_id", "follower_id")
+        fields = [
+            "username",
+            "visible_name",
+            "bio",
+            "follower_counter",
+            "avatar_url",
+            "birthday",
+            "registration_day",
+            "last_login",
+            "likes",
+            "dislikes",
+        ]
 
 
 class GlobalAdminSerializer(serializers.ModelSerializer):
     """Сериализатор для модели GlobalAdmins"""
 
+    user = UserSerializer()
+
     class Meta:
         model = GlobalAdmin
-        fields = ("id", "user_id")
+        fields = ("id", "user")
 
 
 class CommunitySerializer(serializers.ModelSerializer):
     """Сериализатор для модели Communities"""
+
+    creator = UserSerializer()
 
     class Meta:
         model = Community
@@ -53,32 +59,38 @@ class CommunitySerializer(serializers.ModelSerializer):
             "description",
             "avatar_url",
             "member_counter",
-            "creator_id",
+            "creator",
             "creation_date",
         )
 
 
-class CommunitiesFollowSerializer(serializers.ModelSerializer):
-    """Сериализатор для модели CommunitiesFollows"""
-
-    class Meta:
-        model = CommunitiesFollow
-        fields = ("id", "community_id", "follower_id")
-
-
 class PostSerializer(serializers.ModelSerializer):
     """Сериализатор для модели Posts"""
+
+    creator = UserSerializer()
+    community = CommunitySerializer()
+    likes = serializers.IntegerField(read_only=True)
+    dislikes = serializers.IntegerField(read_only=True)
+    user_reaction = serializers.CharField(read_only=True)
 
     class Meta:
         model = Post
         fields = (
             "id",
             "text",
-            "creator_id",
-            "community_id",
-            "like_counter",
-            "dislike_counter",
+            "creator",
+            "community",
+            "liked",
+            "disliked",
+            "creation_datetime",
+            "likes",
+            "dislikes",
+            "user_reaction",
         )
+
+    def get_validation_exclusions(self):
+        exclusions = super().get_validation_exclusions()
+        return exclusions + ["creator"]
 
 
 class CommentSerializer(serializers.ModelSerializer):
@@ -86,7 +98,7 @@ class CommentSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Comment
-        fields = ("id", "text", "creator_id", "post_id", "creation_time")
+        fields = ("id", "text", "creator", "post", "creation_time")
 
 
 class ResourcesDataSerializer(serializers.ModelSerializer):
@@ -102,20 +114,4 @@ class ResourcesRelationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ResourcesRelation
-        fields = ("id", "post_id", "comment_id", "resource_id")
-
-
-class LikeSeializer(serializers.ModelSerializer):
-    """Сериализатор для модели Likes"""
-
-    class Meta:
-        model = Like
-        fields = ("id", "liker_id", "post_id")
-
-
-class DislikeSerializer(serializers.ModelSerializer):
-    """Сериализатор для модели Dislikes"""
-
-    class Meta:
-        model = Dislike
-        fields = ("id", "disliker_id", "post_id")
+        fields = ("id", "post", "comment", "resource")

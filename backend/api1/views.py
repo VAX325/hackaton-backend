@@ -3,7 +3,7 @@ from .utils import random_token
 from django.shortcuts import render
 from datetime import timedelta
 from django.utils import timezone
-from django.http import JsonResponse, HttpResponse
+from rest_framework.response import Response
 from rest_framework.decorators import api_view
 from rest_framework import routers
 from rest_framework.generics import CreateAPIView, ListAPIView, RetrieveAPIView
@@ -20,7 +20,7 @@ class UserCreateView(CreateAPIView):
     def post(self, request, *args, **kwargs):
 
         if User.objects.filter(username=request.data["username"]).count() > 0:
-            return JsonResponse(
+            return Response(
                 {"message": "non-correct username"}, status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -43,7 +43,7 @@ class UserInfoView(RetrieveAPIView):
                 ).count
                 <= 0
             ):
-                return JsonResponse({}, status=status.HTTP_401_UNAUTHORIZED)
+                return Response({}, status=status.HTTP_401_UNAUTHORIZED)
         return super().get(request, *args, **kwargs)
 
 
@@ -51,7 +51,7 @@ class UserInfoView(RetrieveAPIView):
 def post_create_view(request):
     try:
         check_session(request.data.token)
-    
+
         post = Post.objects.create(
             text=request.data.text,
             creator_id=request.data.creator_id,
@@ -69,11 +69,11 @@ def post_create_view(request):
                 post_id=post.id,
             )
 
-        return JsonResponse({"message": "OK"}, status=status.HTTP_201_CREATED)
-
+        return Response({"message": "OK"}, status=status.HTTP_201_CREATED)
 
     except Exception as e:
-        return JsonResponse({"message":e})
+        return Response({"message": e})
+
 
 @api_view(["POST"])
 def post_get_view(request):
@@ -83,7 +83,7 @@ def post_get_view(request):
         post = Post.objects.filter(id=request.data.post_id)
 
         if post.count() <= 0:
-            return JsonResponse(
+            return Response(
                 {"message": "Bad Request"}, status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -99,7 +99,7 @@ def post_get_view(request):
         for comm in Comment.objects.filter(post_id=post.id):
             comments_id.append(comm)
 
-        return JsonResponse(
+        return Response(
             {
                 "post_resources": resources,
                 "post_comments": comments_id,
@@ -136,47 +136,40 @@ def comment_create_view(request):
                 post_id=-1,
             )
 
-        return JsonResponse({"message": "OK"}, status=status.HTTP_201_CREATED)
+        return Response({"message": "OK"}, status=status.HTTP_201_CREATED)
 
     except Exception as e:
-        return JsonResponse({"message":e})
+        return Response({"message": e})
+
 
 @api_view(["POST"])
 def comment_get_view(request):
     try:
         check_session(request.data.token)
-    except:
-        comment = Comment.objects.filter(id=request.data.post_id)
+    except Exception as e:
+        return Response({"message": e})
 
-        if comment.count() <= 0:
-            return JsonResponse(
-                {"message": "Bad Request"}, status=status.HTTP_400_BAD_REQUEST
-            )
+    comment = Comment.objects.filter(id=request.data.post_id)
 
-        resources = []
-        for resource_relation_id in ResourcesRelation.objects.filter(
-            comment_id=comment.id
-        ):
-            resources.append(
-                ResourcesData.objects.filter(
-                    resource_id=resource_relation_id
-                ).resource_url
-            )
+    if comment.count() <= 0:
+        return Response({"message": "Bad Request"}, status=status.HTTP_400_BAD_REQUEST)
 
-        return JsonResponse(
-            {
-                "comment_resources": resources,
-                "comment_info": {
-                    "text": comment.text,
-                    "creator_id": comment.creator_id,
-                    "creation_time": comment.creation_time,
-                },
-            }
+    resources = []
+    for resource_relation_id in ResourcesRelation.objects.filter(comment_id=comment.id):
+        resources.append(
+            ResourcesData.objects.filter(resource_id=resource_relation_id).resource_url
         )
 
-
-    except Exception as e:
-        return JsonResponse({"message":e})
+    return Response(
+        {
+            "comment_resources": resources,
+            "comment_info": {
+                "text": comment.text,
+                "creator_id": comment.creator_id,
+                "creation_time": comment.creation_time,
+            },
+        }
+    )
 
 
 @api_view(["POST"])
@@ -186,7 +179,7 @@ def auth_by_hash(request):
     passhash = hash(request.data["password"])
 
     if not User.objects.filter(username=name, password_hash=passhash).count() > 0:
-        return JsonResponse(
+        return Response(
             {"message": "User is not exist"}, status=status.HTTP_400_BAD_REQUEST
         )
 
@@ -199,7 +192,7 @@ def auth_by_hash(request):
         session_finish_time=ses_expire,
         user_id=User.objects.filter(username=name, password_hash=passhash).id,
     )
-    return JsonResponse({"token": token}, status=status.HTTP_200_OK)
+    return Response({"token": token}, status=status.HTTP_200_OK)
 
 
 @api_view(["POST"])
@@ -207,40 +200,49 @@ def users_following_create_view(request):
     try:
         check_session(request.data.token)
 
-        if User.objects.filter(id=request.data.user_id).count() <= 0 and User.objects.filter(id=request.data.follower_id).count() <= 0:    
-            return JsonResponse({"message":"Users not Exist"}, status=status.HTTP_404_NOT_FOUND)
+        if (
+            User.objects.filter(id=request.data.user_id).count() <= 0
+            and User.objects.filter(id=request.data.follower_id).count() <= 0
+        ):
+            return Response(
+                {"message": "Users not Exist"}, status=status.HTTP_404_NOT_FOUND
+            )
 
-        UsersFollow.objects.create(user_id=request.data.user_id, follower_id=request.data.follower_id)
+        UsersFollow.objects.create(
+            user_id=request.data.user_id, follower_id=request.data.follower_id
+        )
 
-        return JsonResponse({"message":"CREATED"}, status=status.HTTP_201_CREATED)
-    
+        return Response({"message": "CREATED"}, status=status.HTTP_201_CREATED)
+
     except Exception as e:
-        return JsonResponse({"message":e})
+        return Response({"message": e})
 
 
 @api_view(["POST"])
 def get_follower_view(request):
     try:
         check_session(request.data.token)
-        
+
         r = UsersFollow.objects.filter(user_id=request.data.user_id)
 
-        if r.count() <= 0 :
-            return JsonResponse({"data":[]}, status=status.HTTP_200_OK)
+        if r.count() <= 0:
+            return Response({"data": []}, status=status.HTTP_200_OK)
 
         data = []
         for follow in r:
             data.append(
                 {
-                    "id":follow.id,
-                    "user_id":follow.user_id,
-                    "follower_id":follow.follower_id
-                })
+                    "id": follow.id,
+                    "user_id": follow.user_id,
+                    "follower_id": follow.follower_id,
+                }
+            )
 
-        return JsonResponse({"data":data},status=status.HTTP_200_OK)
+        return Response({"data": data}, status=status.HTTP_200_OK)
 
     except Exception as e:
-        return JsonResponse(e)
+        return Response(e)
+
 
 @api_view(["GET"])
 def get_all_users(request):
@@ -251,11 +253,10 @@ def get_all_users(request):
         check_session(request.token)
         # Check user by he is admin
 
+        return Response(User.objects.all())
 
-        return HttpResponse(User.objects.all())
-    
     except Exception as e:
-        return JsonResponse({"message":e})
+        return Response({"message": e})
 
 
 def update_session(token):
@@ -273,11 +274,9 @@ def check_session(token):
     res = Session.object.filter(token=token)
 
     if res.count <= 0:
-        raise JsonResponse(
-            {"message": "Session is not exist"}, status.HTTP_400_BAD_REQUEST
-        )
+        raise Response({"message": "Session is not exist"}, status.HTTP_400_BAD_REQUEST)
     if res["finish_time"] < timezone.now():
-        raise JsonResponse(
+        raise Response(
             {"message": "Session expire"}, status=status.HTTP_401_UNAUTHORIZED
         )
     update_session(token=token)

@@ -13,7 +13,7 @@ SECRET_KEY = "django-insecure-lders)2ewbg8823!eihfhi2c1p8)n+z$ji3y9w2ff*h#4j#e0i
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["*"]
 
 
 # Application definition
@@ -25,6 +25,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "rest_framework",
     "api1",
 ]
 
@@ -66,7 +67,7 @@ DATABASES = {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": "API",
         "USER": "postgres",
-        "PASSWORD": "dan22tar07",
+        "PASSWORD": "postgres",
         "HOST": "localhost",
         "PORT": "5432",
     }

@@ -1,88 +1,169 @@
-from rest_framework import status
-from .utils import random_token
-from django.shortcuts import render
-from datetime import timedelta
-from django.utils import timezone
-from rest_framework.response import Response
-from rest_framework.decorators import api_view
-from rest_framework import routers
-from rest_framework.generics import CreateAPIView, ListAPIView, RetrieveAPIView
-from django.contrib.auth.hashers import make_password
-from .serializers import *
-from .models import *
 from ast import literal_eval
+from datetime import timedelta
+
+from django.contrib.auth.hashers import make_password
+from django.shortcuts import render
+from django.utils import timezone
+from rest_framework import routers, status
+from rest_framework.authtoken.models import Token
+from rest_framework.decorators import api_view
+from rest_framework.generics import (
+    CreateAPIView,
+    ListCreateAPIView,
+    RetrieveAPIView,
+    RetrieveUpdateDestroyAPIView,
+)
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.request import Request
+from rest_framework.response import Response
+from rest_framework.views import APIView
+from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework_simplejwt.tokens import RefreshToken
+
+from .models import *
+from .serializers import *
 
 
-class UserCreateView(CreateAPIView):
-    serializer_class = UserSerializer
-    queryset = User.objects.all()
+class RegistrationView(APIView):
+    def post(self, request: Request):
+        serializer = UserRegistrationSerializer(data=request.data)
 
-    def post(self, request, *args, **kwargs):
+        if serializer.is_valid():
+            userdata = serializer.data
 
-        if User.objects.filter(username=request.data["username"]).count() > 0:
-            return Response(
-                {"message": "non-correct username"}, status=status.HTTP_400_BAD_REQUEST
+            user = User.objects.create_user(
+                username=userdata["username"],
+                password=userdata["password"],
+                visible_name=userdata["username"],
+                email=userdata["email"],
+                birthday=timezone.now(),
             )
 
-        request.data["password"] = make_password(request.data["password"])
-        return super().post(request, *args, **kwargs)
+            refresh = RefreshToken.for_user(user)  # Создание Refesh и Access
+            refresh.payload.update(
+                {
+                    "user_id": user.id,
+                    "username": user.username,
+                }
+            )
+
+            return Response(
+                {
+                    "refresh": str(refresh),
+                    "access": str(refresh.access_token),  # Отправка на клиент
+                },
+                status=status.HTTP_201_CREATED,
+            )
+        else:
+            return Response(
+                {"message": "Invalid registration data"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+
+class LoginView(APIView):
+    def post(self, request: Request):
+        data = request.data
+        username = data.get("username", None)
+        password = data.get("password", None)
+        if username is None or password is None:
+            return Response(
+                {"message": "Login/Password invalid"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            user = User.objects.get(username=username, password=make_password(password))
+        except User.DoesNotExist:
+            return Response(
+                {"message": "Invalid Login or Password"},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        refresh = RefreshToken.for_user(user)
+        refresh.payload.update({"user_id": user.id, "username": user.username})
+        return Response(
+            {
+                "refresh": str(refresh),
+                "access": str(refresh.access_token),
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class LogoutView(APIView):
+    def post(self, request: Request):
+        refresh_token = request.data.get(
+            "refresh_token"
+        )  # С клиента нужно отправить refresh token
+        if not refresh_token:
+            return Response(
+                {"error": "Необходим Refresh token"}, status=status.HTTP_400_BAD_REQUEST
+            )
+        try:
+            token = RefreshToken(refresh_token)
+            token.blacklist()  # Добавить его в чёрный список
+        except Exception as e:
+            return Response(
+                {"error": "Неверный Refresh token"}, status=status.HTTP_400_BAD_REQUEST
+            )
+        return Response({"success": "Выход успешен"}, status=status.HTTP_200_OK)
 
 
 class UserInfoView(RetrieveAPIView):
     serializer_class = UserSerializer
     queryset = User.objects.all()
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
 
-    def get(self, request, *args, **kwargs):
-        try:
-            check_session(request.data.token)
-        except:
 
-            if (
-                Session.object.filter(
-                    token=request.data.token, user_id=request.data.user_id
-                ).count
-                <= 0
-            ):
-                return Response({}, status=status.HTTP_401_UNAUTHORIZED)
-        return super().get(request, *args, **kwargs)
+class PostsView(ListCreateAPIView):
+    serializer_class = PostSerializer
+    queryset = Post.objects.all()
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+
+class PostView(RetrieveUpdateDestroyAPIView):
+    serializer_class = PostSerializer
+    queryset = Post.objects.all()
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
 
 
 @api_view(["POST"])
 def post_create_view(request):
-    try:
-        check_session(request.data.token)
+    post = Post.objects.create(
+        text=request.data.text,
+        creator_id=request.data.creator_id,
+        community_creator=request.data.community_creator,
+    )
 
-        post = Post.objects.create(
-            text=request.data.text,
-            creator_id=request.data.creator_id,
-            community_creator=request.data.community_creator,
+    resources_arr = literal_eval(request["resources"])
+    #! add upload by cdn
+    # urls_resources = upload_cdn(resources_arr)
+    for resource in resources_arr:
+        ResourcesData.objects.create(resource_url=resource)
+        ResourcesRelation.objects.create(
+            resource_id=ResourcesData.objects.filter(resource_url=resource).id,
+            comment_id=-1,
+            post_id=post.id,
         )
 
-        resources_arr = literal_eval(request["resources"])
-        #! add upload by cdn
-        # urls_resources = upload_cdn(resources_arr)
-        for resource in resources_arr:
-            ResourcesData.objects.create(resource_url=resource)
-            ResourcesRelation.objects.create(
-                resource_id=ResourcesData.objects.filter(resource_url=resource).id,
-                comment_id=-1,
-                post_id=post.id,
-            )
-
-        return Response({"message": "OK"}, status=status.HTTP_201_CREATED)
-
-    except Exception as e:
-        return Response({"message": e})
+    return Response({"message": "OK"}, status=status.HTTP_201_CREATED)
 
 
+"""
 @api_view(["POST"])
 def post_get_view(request):
     try:
         check_session(request.data.token)
     except:
-        post = Post.objects.filter(id=request.data.post_id)
+        return
 
-        if post.count() <= 0:
+        try:
+            post = Post.objects.get(id=request.data.post_id)
+        except:
             return Response(
                 {"message": "Bad Request"}, status=status.HTTP_400_BAD_REQUEST
             )
@@ -90,9 +171,7 @@ def post_get_view(request):
         resources = []
         for resource_relation_id in ResourcesRelation.objects.filter(post_id=post.id):
             resources.append(
-                ResourcesData.objects.filter(
-                    resource_id=resource_relation_id
-                ).resource_url
+                ResourcesData.objects.get(resource_id=resource_relation_id).resource_url
             )
 
         comments_id = []
@@ -149,10 +228,12 @@ def comment_get_view(request):
     except Exception as e:
         return Response({"message": e})
 
-    comment = Comment.objects.filter(id=request.data.post_id)
-
-    if comment.count() <= 0:
-        return Response({"message": "Bad Request"}, status=status.HTTP_400_BAD_REQUEST)
+    try:
+        comment = Comment.objects.get(id=request.data.post_id)
+    except Comment.DoesNotExist:
+        return Response(
+            {"message": "Comment doesn't exists"}, status=status.HTTP_400_BAD_REQUEST
+        )
 
     resources = []
     for resource_relation_id in ResourcesRelation.objects.filter(comment_id=comment.id):
@@ -170,29 +251,6 @@ def comment_get_view(request):
             },
         }
     )
-
-
-@api_view(["POST"])
-def auth_by_hash(request):
-
-    name = request.data["username"]
-    passhash = hash(request.data["password"])
-
-    if not User.objects.filter(username=name, password_hash=passhash).count() > 0:
-        return Response(
-            {"message": "User is not exist"}, status=status.HTTP_400_BAD_REQUEST
-        )
-
-    token = random_token()
-
-    ses_expire = timezone.now() + timedelta.days(7)
-
-    Session.object.create(
-        token=token,
-        session_finish_time=ses_expire,
-        user_id=User.objects.filter(username=name, password_hash=passhash).id,
-    )
-    return Response({"token": token}, status=status.HTTP_200_OK)
 
 
 @api_view(["POST"])
@@ -242,41 +300,4 @@ def get_follower_view(request):
 
     except Exception as e:
         return Response(e)
-
-
-@api_view(["GET"])
-def get_all_users(request):
-    """
-    !ONLY FOR TEST
-    """
-    try:
-        check_session(request.token)
-        # Check user by he is admin
-
-        return Response(User.objects.all())
-
-    except Exception as e:
-        return Response({"message": e})
-
-
-def update_session(token):
-    r = Session.object.filter(token=token)
-
-    new_token = random_token()
-
-    r["token"] = new_token
-    r["finish_time"] = timezone.now()
-    r.save()
-    return
-
-
-def check_session(token):
-    res = Session.object.filter(token=token)
-
-    if res.count <= 0:
-        raise Response({"message": "Session is not exist"}, status.HTTP_400_BAD_REQUEST)
-    if res["finish_time"] < timezone.now():
-        raise Response(
-            {"message": "Session expire"}, status=status.HTTP_401_UNAUTHORIZED
-        )
-    update_session(token=token)
+"""

@@ -1,8 +1,14 @@
 import uuid
-from django.db import models
 from datetime import date
+
+from django.contrib.auth.hashers import check_password, make_password
+from django.contrib.auth.models import (
+    AbstractBaseUser,
+    BaseUserManager,
+    PermissionsMixin,
+)
+from django.db import models
 from django.utils import timezone
-from django.contrib.auth.hashers import make_password, check_password
 
 # -------------- soft delete --------------
 
@@ -34,19 +40,58 @@ class SoftDeleteModel(models.Model):
             self.save(update_fields=["is_deleted", "deleted_at"])
 
 
+class SoftDeleteUserModel(AbstractBaseUser):
+    is_deleted = models.BooleanField(default=False)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+
+    objects = SoftDeleteManager()
+    all_objects = AllObjectsManager()
+
+    class Meta:
+        abstract = True
+
+    def delete(self, using=None, keep_parents=False):
+        if not self.is_deleted:
+            self.is_deleted = True
+            self.deleted_at = timezone.now()
+            self.save(update_fields=["is_deleted", "deleted_at"])
+
+
 # -------------- model Users --------------
 
 
-class User(SoftDeleteModel):
+class CustomUserManager(BaseUserManager):
+    def create_user(self, username, password=None, **extra_fields):
+        if not username:
+            raise ValueError("The Email field must be set")
+        user = self.model(
+            username=self.model.normalize_username(username=username), **extra_fields
+        )  # Create user instance
+        user.set_password(password)  # Hash the password
+        user.save(using=self._db)  # Save to database
+        return user
+
+    def create_superuser(self, email, password=None, **extra_fields):
+        extra_fields.setdefault("is_staff", True)
+        extra_fields.setdefault("is_superuser", True)
+        return self.create_user(email, password, **extra_fields)
+
+
+class User(SoftDeleteUserModel):
     username = models.CharField(unique=True, max_length=16)
     visible_name = models.CharField(max_length=32, default="")
+    password = models.CharField(max_length=128)
     email = models.CharField(max_length=32)
     bio = models.CharField(null=True, max_length=256)
     follower_counter = models.IntegerField(default=0)
     avatar_url = models.URLField(null=True)
-    birthday = models.DateField(default="1900-01-01")
+    birthday = models.DateField()
     registration_day = models.DateField(default=timezone.now)
-    password_hash = models.CharField(max_length=256)
+    last_login = models.DateTimeField(null=True)  # TODO: Fix that
+
+    USERNAME_FIELD = "username"
+    REQUIRED_FIELDS = ["email"]
+    objects = CustomUserManager()
 
     # def set_password(self, raw_password):
     #     self.password_hash = make_password(raw_password)
@@ -65,14 +110,6 @@ class UsersFollow(SoftDeleteModel):
 
     class Meta:
         unique_together = ("user_id", "follower_id")
-
-
-class Session(SoftDeleteModel):
-    user_id = models.ForeignKey(User, on_delete=models.PROTECT)
-    token = models.CharField(max_length=16)
-    start_time = models.DateTimeField(default=timezone.now)
-    finish_time = models.DateTimeField()
-    # device_name = models.CharField(max_length=128)
 
 
 class GlobalAdmin(SoftDeleteModel):

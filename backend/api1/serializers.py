@@ -1,6 +1,7 @@
-from rest_framework import serializers
-from .models import *
 from django.contrib.auth.models import User
+from rest_framework import serializers
+
+from .models import *
 
 
 class SoftDeleteModelSerializer(serializers.ModelSerializer):
@@ -9,6 +10,12 @@ class SoftDeleteModelSerializer(serializers.ModelSerializer):
     class Meta:
         model = SoftDeleteModel
         fields = ("id", "deleted_at", "objects", "all_objects")
+
+
+class UserRegistrationSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    username = serializers.CharField()
+    password = serializers.CharField()
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -25,14 +32,6 @@ class UsersFollowSerializer(serializers.ModelSerializer):
     class Meta:
         model = UsersFollow
         fields = ("id", "user_id", "follower_id")
-
-
-class SessionSerializer(serializers.ModelSerializer):
-    """Сериализатор для модели Sessions"""
-
-    class Meta:
-        model = Session
-        fields = ("id", "token", "start_time", "finish_time")
 
 
 class GlobalAdminSerializer(serializers.ModelSerializer):

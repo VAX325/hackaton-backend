@@ -40,7 +40,7 @@ class SoftDeleteModel(models.Model):
 class User(SoftDeleteModel):
     username = models.CharField(unique=True, max_length=16)
     visible_name = models.CharField(max_length=32, default="")
-    email = models.CharField(max_length=32)
+    email = models.EmailField(max_length=32, unique=True)
     bio = models.CharField(null=True, max_length=256)
     follower_counter = models.IntegerField(default=0)
     avatar_url = models.URLField(null=True)
@@ -89,7 +89,11 @@ class Community(SoftDeleteModel):
 
 
 class CommunitiesFollow(SoftDeleteModel):
+    community_id = models.ForeignKey(Community, on_delete=models.PROTECT)
     follower_id = models.ForeignKey(User, on_delete=models.PROTECT)
+
+    class Meta:
+        unique_together = ('disliker_id', 'follower_id')
 
 
 class Post(SoftDeleteModel):
@@ -121,7 +125,26 @@ class Like(SoftDeleteModel):
     liker_id = models.ForeignKey(User, on_delete=models.PROTECT)
     post_id = models.ForeignKey(Post, on_delete=models.PROTECT)
 
+    class Meta:
+        unique_together = ('liker_id', 'post_id')
+
 
 class Dislike(SoftDeleteModel):
     disliker_id = models.ForeignKey(User, on_delete=models.PROTECT)
     post_id = models.ForeignKey(Post, on_delete=models.PROTECT)
+
+    class Meta:
+        unique_together = ('disliker_id', 'post_id')
+
+
+class CommunityModerator(SoftDeleteModel):
+    user_id = models.ForeignKey(User, on_delete=models.models.PROTECT)
+    community_id = models.ForeignKey(Community, on_delete=models.models.PROTECT)
+    can_add_posts = models.BooleanField(default=False)
+    can_delete_posts = models.BooleanField(default=False)
+    can_delete_comments = models.BooleanField(default=False)
+    can_change_posts = models.BooleanField(default=False)
+
+    class Meta:
+        unique_together = ('user_id', 'community_id')
+    

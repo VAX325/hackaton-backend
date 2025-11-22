@@ -1,8 +1,14 @@
 import uuid
-from django.db import models
 from datetime import date
+
+from django.contrib.auth.hashers import check_password, make_password
+from django.contrib.auth.models import (
+    AbstractBaseUser,
+    BaseUserManager,
+    PermissionsMixin,
+)
+from django.db import models
 from django.utils import timezone
-from django.contrib.auth.hashers import make_password, check_password
 
 # -------------- soft delete --------------
 
@@ -34,76 +40,101 @@ class SoftDeleteModel(models.Model):
             self.save(update_fields=["is_deleted", "deleted_at"])
 
 
+class SoftDeleteUserModel(AbstractBaseUser):
+    is_deleted = models.BooleanField(default=False)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+
+    objects = SoftDeleteManager()
+    all_objects = AllObjectsManager()
+
+    class Meta:
+        abstract = True
+
+    def delete(self, using=None, keep_parents=False):
+        if not self.is_deleted:
+            self.is_deleted = True
+            self.deleted_at = timezone.now()
+            self.save(update_fields=["is_deleted", "deleted_at"])
+
+
 # -------------- model Users --------------
 
 
-class User(SoftDeleteModel):
+class CustomUserManager(BaseUserManager):
+    def create_user(self, username, password=None, **extra_fields):
+        user = self.model(
+            username=self.model.normalize_username(username=username), **extra_fields
+        )  # Create user instance
+        user.set_password(password)  # Hash the password
+        user.save(using=self._db)  # Save to database
+        return user
+
+    def create_superuser(self, username, password=None, **extra_fields):
+        extra_fields.setdefault("is_staff", True)
+        extra_fields.setdefault("is_superuser", True)
+        return self.create_user(username, password, **extra_fields)
+
+
+class User(SoftDeleteUserModel):
     username = models.CharField(unique=True, max_length=16)
     visible_name = models.CharField(max_length=32, default="")
-    email = models.CharField(max_length=32)
+    password = models.CharField(max_length=128)
     bio = models.CharField(null=True, max_length=256)
     follower_counter = models.IntegerField(default=0)
     avatar_url = models.URLField(null=True)
-    birthday = models.DateField(default="1900-01-01")
+    birthday = models.DateField()
     registration_day = models.DateField(default=timezone.now)
-    password_hash = models.CharField(max_length=256)
-
-    # def set_password(self, raw_password):
-    #     self.password_hash = make_password(raw_password)
-
-    # def password_check(self, raw_password):
-    #     return check_password(raw_password, self.password_hash)
-
-
-class UsersFollow(SoftDeleteModel):
-    user_id = models.ForeignKey(
-        User, on_delete=models.PROTECT, related_name="users_follow_user"
+    last_login = models.DateTimeField(null=True)  # TODO: Fix that
+    likes = models.ManyToManyField(to="Post", blank=True, related_name="likes_user_set")
+    dislikes = models.ManyToManyField(
+        to="Post", blank=True, related_name="dislikes_user_set"
     )
-    follower_id = models.ForeignKey(
-        User, on_delete=models.PROTECT, related_name="users_follow_follower"
+    comments = models.ManyToManyField(
+        to="Comment", blank=True, related_name="comments_user_set"
+    )
+    followers = models.ManyToManyField(
+        to="User", blank=True, related_name="followers_users_set"
+    )
+    subscribed = models.ManyToManyField(
+        to="Community", blank=True, related_name="subscribed_users_set"
     )
 
-    class Meta:
-        unique_together = ("user_id", "follower_id")
-
-
-class Session(SoftDeleteModel):
-    user_id = models.ForeignKey(User, on_delete=models.PROTECT)
-    token = models.CharField(max_length=16)
-    start_time = models.DateTimeField(default=timezone.now)
-    finish_time = models.DateTimeField()
-    # device_name = models.CharField(max_length=128)
+    USERNAME_FIELD = "username"
+    objects = CustomUserManager()
 
 
 class GlobalAdmin(SoftDeleteModel):
-    user_id = models.ForeignKey(User, on_delete=models.PROTECT)
+    user = models.ForeignKey(User, on_delete=models.PROTECT)
 
 
 class Community(SoftDeleteModel):
     label = models.CharField(max_length=128)
     description = models.CharField(null=True, max_length=1024)
     avatar_url = models.URLField()
-    member_counter = models.IntegerField(default=0)
-    creator_id = models.ForeignKey(User, on_delete=models.PROTECT)
+    members = models.ManyToManyField(
+        to=User, blank=True, related_name="community_users_set"
+    )
+    creator = models.ForeignKey(User, on_delete=models.PROTECT)
     creation_date = models.DateTimeField(default=timezone.now)
-
-
-class CommunitiesFollow(SoftDeleteModel):
-    follower_id = models.ForeignKey(User, on_delete=models.PROTECT)
 
 
 class Post(SoftDeleteModel):
     text = models.CharField(max_length=2048)
-    creator_id = models.ForeignKey(User, on_delete=models.PROTECT)
-    community_id = models.ForeignKey(Community, on_delete=models.PROTECT)
-    like_counter = models.IntegerField(default=0)
-    dislike_counter = models.IntegerField(default=0)
+    creator = models.ForeignKey(User, on_delete=models.PROTECT)
+    community = models.ForeignKey(Community, null=True, on_delete=models.PROTECT)
+    liked = models.ManyToManyField(
+        to=User, blank=True, related_name="post_user_liked_set"
+    )
+    disliked = models.ManyToManyField(
+        to=User, blank=True, related_name="post_user_disliked_set"
+    )
+    creation_datetime = models.DateTimeField(default=timezone.now)
 
 
 class Comment(SoftDeleteModel):
     text = models.CharField(max_length=512)
-    creator_id = models.ForeignKey(User, on_delete=models.PROTECT)
-    post_id = models.ForeignKey(Post, on_delete=models.PROTECT)
+    creator = models.ForeignKey(User, on_delete=models.PROTECT)
+    post = models.ForeignKey(Post, on_delete=models.PROTECT)
     creation_time = models.DateTimeField(default=timezone.now)
 
 
@@ -112,16 +143,6 @@ class ResourcesData(SoftDeleteModel):
 
 
 class ResourcesRelation(SoftDeleteModel):
-    post_id = models.ForeignKey(Post, on_delete=models.PROTECT)
-    comment_id = models.ForeignKey(Comment, on_delete=models.PROTECT)
-    resource_id = models.ForeignKey(ResourcesData, on_delete=models.PROTECT)
-
-
-class Like(SoftDeleteModel):
-    liker_id = models.ForeignKey(User, on_delete=models.PROTECT)
-    post_id = models.ForeignKey(Post, on_delete=models.PROTECT)
-
-
-class Dislike(SoftDeleteModel):
-    disliker_id = models.ForeignKey(User, on_delete=models.PROTECT)
-    post_id = models.ForeignKey(Post, on_delete=models.PROTECT)
+    post = models.ForeignKey(Post, on_delete=models.PROTECT)
+    comment = models.ForeignKey(Comment, on_delete=models.PROTECT)
+    resource = models.ForeignKey(ResourcesData, on_delete=models.PROTECT)

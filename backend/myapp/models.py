@@ -85,6 +85,7 @@ class Community(SoftDeleteModel):
 
 
 class CommunitiesFollow(SoftDeleteModel):
+    community_id = models.ForeignKey(Community, on_delete=models.PROTECT)
     follower_id = models.ForeignKey(User, on_delete=models.PROTECT)
 
 

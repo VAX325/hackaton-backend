@@ -37,6 +37,57 @@ class UserInfoView(RetrieveAPIView):
             JsonResponse(e)
 
 @api_view(["POST"])
+def user_change_visible_name(request):
+    try:
+        check_session(request.data.token)
+
+        r = User.objects.filter(id=request.data.user_id)[0]
+        r["visible_name"] = request.data.visible_name
+        r.save()
+
+    except Exception as e:
+        return JsonResponse(e)
+    
+@api_view(["POST"])
+def user_change_bio(request):
+    try:
+        check_session(request.data.token)
+
+        r = User.objects.filter(id=request.data.user_id)[0]
+        r["bio"] = request.data.bio
+        r.save()
+
+    except Exception as e:
+        return JsonResponse(e)
+
+@api_view(["POST"])
+def user_change_avatar_url(request):
+    try:
+        check_session(request.data.token)
+
+        r = User.objects.filter(id=request.data.user_id)[0]
+        r["avatar_url"] = request.data.avatar_url
+        r.save()
+
+    except Exception as e:
+        return JsonResponse(e)
+    
+@api_view(["POST"])
+def user_change_birhday(request):
+    try:
+        check_session(request.data.token)
+
+        r = User.objects.filter(id=request.data.user_id)[0]
+        r["birthday"] = request.data.birthday
+        r.save()
+
+    except Exception as e:
+        return JsonResponse(e)
+    
+
+
+
+@api_view(["POST"])
 def PostCreateView(request):
     try:
         check_session(request.data.token)
@@ -61,7 +112,7 @@ def PostCreateView(request):
         return JsonResponse({"message":"OK"}, status=status.HTTP_201_CREATED)
 
     except Exception as e:
-        return JsonResponse({"message":e})
+        return JsonResponse(e)
 
 @api_view(["POST"])
 def PostGetView(request):
@@ -93,7 +144,38 @@ def PostGetView(request):
         })
         
     except Exception as e:
-        return JsonResponse({"message":e})
+        return JsonResponse(e)
+    
+@api_view(["POST"])
+def like_post_view(request):
+    try:
+        check_session(request.data.token)
+
+        r = Post.objects.get(id=request.data.post_id)
+        r.like_counter += 1
+
+        Like.objects.create(liker_id=request.data.user_id, post_id=r.id)
+
+        return JsonResponse({"message":""}, status=status.HTTP_201_CREATED)
+
+    except Exception as e:
+        return JsonResponse(e)
+
+@api_view(["POST"])
+def dislike_post_view(request):
+    try:
+        check_session(request.data.token)
+
+        r = Post.objects.get(id=request.data.post_id)
+        r.like_counter += 1
+
+        Dislike.objects.create(disliker_id=request.data.user_id, post_id=r.id)
+
+        return JsonResponse({"message":""}, status=status.HTTP_201_CREATED)
+
+    except Exception as e:
+        return JsonResponse(e)
+
 
 @api_view(["POST"])
 def CommentCreateView(request):
@@ -120,7 +202,7 @@ def CommentCreateView(request):
         return JsonResponse({"message":"OK"}, status=status.HTTP_201_CREATED)
 
     except Exception as e:
-        return JsonResponse({"message":e})
+        return JsonResponse(e)
 
 @api_view(["POST"])
 def CommentGetView(request):
@@ -145,7 +227,7 @@ def CommentGetView(request):
         })
 
     except Exception as e:
-        return JsonResponse({"message":e})
+        return JsonResponse(e)
 
 
 @api_view(["POST"])
@@ -177,7 +259,7 @@ def users_following_create_view(request):
         return JsonResponse({"message":"CREATED"}, status=status.HTTP_201_CREATED)
     
     except Exception as e:
-        return JsonResponse({"message":e})
+        return JsonResponse(e)
 
 
 @api_view(["POST"])
@@ -217,7 +299,9 @@ def get_all_users(request):
         return HttpResponse(User.objects.all())
     
     except Exception as e:
-        return JsonResponse({"message":e})
+        return JsonResponse(e)
+
+
 
 def update_session(token):
     r = Session.object.filter(token=token)

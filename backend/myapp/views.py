@@ -185,7 +185,7 @@ def get_follower_view(request):
     try:
         check_session(request.data.token)
         
-        r = UsersFollow.objects.filter(user_id=request_id)
+        r = UsersFollow.objects.filter(user_id=request.data.)
 
     except Exception as e:
         return JsonResponse({"message":e})

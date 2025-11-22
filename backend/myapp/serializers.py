@@ -71,7 +71,7 @@ class ResourcesDataSerializer(serializers.ModelSerializer):
 class ResourcesRelationSerializer(serializers.ModelSerializer):
     """Сериализатор для модели ResourcesRelations"""
     class Meta:
-        model = RecourcesRelation
+        model = ResourcesRelation
         fields = ('id', 'post_id', 'comment_id', 'resource_id')
 
 class LikeSeializer(serializers.ModelSerializer):

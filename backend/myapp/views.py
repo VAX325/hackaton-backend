@@ -169,7 +169,7 @@ def users_following_create_view(request):
     try:
         check_session(request.data.token)
 
-        if User.objects.filter(id=request.data.user_id).count() <= 0 and User.objects.filter(id=request.data.follower_id).count() <= 0     
+        if User.objects.filter(id=request.data.user_id).count() <= 0 and User.objects.filter(id=request.data.follower_id).count() <= 0:    
             return JsonResponse({"message":"Users not Exist"}, status=status.HTTP_404_NOT_FOUND)
 
         UsersFollow.objects.create(user_id=request.data.user_id, follower_id=request.data.follower_id)
@@ -184,7 +184,8 @@ def users_following_create_view(request):
 def get_follower_view(request):
     try:
         check_session(request.data.token)
-
+        
+        r = UsersFollow.objects.filter(user_id=request_id)
 
     except Exception as e:
         return JsonResponse({"message":e})

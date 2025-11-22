@@ -134,13 +134,12 @@ def PostGetView(request):
         return JsonResponse({
             "post_resources":resources,
             "post_comments":comments_id,
-            "post_info":{
-                "text":post.text,
-                "creator_id":post.creator_id,
-                "community_id":post.community_id,
-                "like_counter":post.like_counter,
-                "deslike_counter":post.deslike_counter
-            }
+            "text":post.text,
+            "creator_id":post.creator_id,
+            "community_id":post.community_id,
+            "like_counter":post.like_counter,
+            "deslike_counter":post.deslike_counter
+            
         })
         
     except Exception as e:
@@ -188,7 +187,7 @@ def CommentCreateView(request):
             creation_time=datetime.now()
         )
 
-        resources_arr = literal_eval(request["resources"])
+        resources_arr = literal_eval(request.data["resources"])
         #! add upload by cdn 
         # urls_resources = upload_cdn(resources_arr)
         for resource in resources_arr:
@@ -219,12 +218,10 @@ def CommentGetView(request):
 
         return JsonResponse({
             "comment_resources":resources,
-            "comment_info":{
-                "text":comment.text,
-                "creator_id":comment.creator_id,
-                "creation_time":comment.creation_time
-            }
-        })
+            "text":comment.text,
+            "creator_id":comment.creator_id,
+            "creation_time":comment.creation_time
+            })
 
     except Exception as e:
         return JsonResponse(e)
@@ -304,12 +301,13 @@ def get_all_users(request):
 
 
 def update_session(token):
-    r = Session.object.filter(token=token)
+    r = Session.object.get(token=token)
 
     new_token = random_token()
 
     r["token"] = new_token
-    r["finish_time"] = datetime.now()
+    r["start_time"] = datetime.now()
+    r["finish_time"] = datetime.now()+timedelta.days(7)
     r.save()
     return
 

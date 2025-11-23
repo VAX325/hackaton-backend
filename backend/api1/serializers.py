@@ -15,6 +15,7 @@ class SoftDeleteModelSerializer(serializers.ModelSerializer):
 class UserRegistrationSerializer(serializers.Serializer):
     username = serializers.CharField()
     password = serializers.CharField()
+    visible_name = serializers.CharField()
 
 
 class UserSerializer(serializers.ModelSerializer):

@@ -59,7 +59,8 @@ class RegistrationView(APIView):
             user = User.objects.create_user(
                 username=userdata["username"],
                 password=userdata["password"],
-                visible_name=userdata["username"],
+                visible_name=userdata["visible_name"],
+                avatar_url=f"http://localhost:8080/api/v1/assets/{userdata['username']}/avatar.jpg",
                 birthday=timezone.now(),
             )
 
